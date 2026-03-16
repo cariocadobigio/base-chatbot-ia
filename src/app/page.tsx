@@ -18,7 +18,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     { 
       role: "assistant", 
-      content: "Fala, mestre! Aqui é a inteligência artificial do Carioca. Estou aqui para entender a sua demanda técnica. Você está precisando de uma Landing Page de alta conversão, um PDV sob medida, um app para corretora, ou um SaaS completo?" 
+      content: "Olá! Sou o assistente virtual do Carioca, Arquiteto de Software. Nós desenvolvemos sistemas web robustos, aplicativos e automações focadas em escalar negócios. Me conta de forma resumida: qual é o seu segmento e o que você precisa construir ou automatizar na sua empresa?" 
     }
   ]);
   const [input, setInput] = useState("");
