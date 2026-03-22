@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-// Usando caminho relativo ajustado para 2 níveis (app -> admin -> page.tsx)
 import { supabase } from "../../lib/supabase"; 
 
-// Tipagem rigorosa para o nosso banco de dados
 type Lead = {
   id: string;
   created_at: string;
@@ -17,105 +15,98 @@ export default function AdminDashboard() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Hook para buscar os dados assim que a tela carrega
   useEffect(() => {
     fetchLeads();
   }, []);
 
-  // Data Fetching: Buscando os Leads no Supabase
   const fetchLeads = async () => {
+    setIsLoading(true);
     try {
+      // 🔥 CORREÇÃO CRÍTICA: Apontando para a tabela exata do seu SaaS
       const { data, error } = await supabase
         .from("leads_viagens")
         .select("*")
-        .order("created_at", { ascending: false }); // Traz os mais recentes primeiro
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-      if (data) setLeads(data);
+      setLeads(data || []);
     } catch (error) {
-      console.error("❌ Erro ao buscar leads:", error);
+      console.error("❌ Falha de Fetching (Possível bloqueio de RLS):", error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Helper function para formatar a data do banco
   const formatarData = (dataIso: string) => {
     return new Date(dataIso).toLocaleDateString("pt-BR", {
       day: "2-digit",
       month: "2-digit",
-      year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
     });
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-6xl mx-auto">
-        <header className="mb-8 flex justify-between items-center">
+    <main className="min-h-screen bg-slate-900 p-8 font-sans text-slate-100">
+      <div className="max-w-6xl mx-auto space-y-8">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Painel de Leads</h1>
-            <p className="text-gray-500 mt-1">Gerencie os clientes capturados pelo Agente Virtual</p>
+            <h1 className="text-3xl font-extrabold text-white tracking-tight">CRM | Enterprise</h1>
+            <p className="text-slate-400 mt-1">Gestão de Leads Omnichannel e Transbordo Humano</p>
           </div>
-          <div className="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-bold">
-            Total de Leads: {leads.length}
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            <div className="bg-slate-900 border border-slate-700 text-indigo-400 px-4 py-2.5 rounded-xl font-bold flex-1 text-center whitespace-nowrap">
+              Total: {leads.length} Leads
+            </div>
+            <button 
+              onClick={fetchLeads}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center"
+            >
+              Atualizar
+            </button>
           </div>
         </header>
 
         {isLoading ? (
-          <div className="text-center py-20 text-gray-500 animate-pulse font-medium">
-            Carregando painel de vendas...
+          <div className="flex justify-center items-center h-64">
+            <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        ) : leads.length === 0 ? (
+          <div className="bg-slate-800 p-12 rounded-2xl border border-slate-700 text-center">
+            <div className="text-5xl mb-4">📭</div>
+            <h2 className="text-xl font-bold text-slate-300">Nenhum Lead retornado da API</h2>
+            <p className="text-slate-500 mt-2">O banco está vazio ou o RLS (Supabase) está bloqueando a leitura.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 text-sm uppercase tracking-wider">
-                  <th className="p-4 font-semibold">Data</th>
-                  <th className="p-4 font-semibold">Cliente</th>
-                  <th className="p-4 font-semibold">WhatsApp</th>
-                  <th className="p-4 font-semibold">Interações (Chat)</th>
-                  <th className="p-4 font-semibold text-center">Ação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {leads.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="p-8 text-center text-gray-500">
-                      Nenhum lead capturado ainda. Mande o link para os clientes!
-                    </td>
-                  </tr>
-                ) : (
-                  leads.map((lead) => (
-                    <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="p-4 text-sm text-gray-500 whitespace-nowrap">
-                        {formatarData(lead.created_at)}
-                      </td>
-                      <td className="p-4 font-medium text-gray-900">
-                        {lead.nome_cliente}
-                      </td>
-                      <td className="p-4 text-gray-600">
-                        {lead.telefone}
-                      </td>
-                      <td className="p-4 text-sm text-gray-500">
-                        {lead.historico_chat.length - 1} mensagens trocadas
-                      </td>
-                      <td className="p-4 text-center">
-                        <a
-                          href={`https://wa.me/55${lead.telefone.replace(/\D/g, '')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-block bg-green-500 hover:bg-green-600 text-white text-sm font-bold py-2 px-4 rounded-lg transition-colors"
-                        >
-                          Chamar no Zap
-                        </a>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {leads.map((lead) => (
+              <div key={lead.id} className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden hover:border-indigo-500/50 transition-colors shadow-lg flex flex-col">
+                <div className="p-5 border-b border-slate-700 bg-slate-800/50">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-bold text-lg text-white truncate pr-2">{lead.nome_cliente || 'Lead Anônimo'}</h3>
+                    <span className="bg-emerald-500/10 text-emerald-400 text-xs px-2.5 py-1 rounded-full border border-emerald-500/20 whitespace-nowrap">
+                      Capturado
+                    </span>
+                  </div>
+                  <p className="text-slate-400 text-sm font-mono">{lead.telefone}</p>
+                  <div className="text-slate-500 text-xs mt-3 flex justify-between items-center bg-slate-900/50 p-2 rounded-lg border border-slate-700/50">
+                    <span>📅 {formatarData(lead.created_at)}</span>
+                    <span>💬 {lead.historico_chat ? Math.max(0, lead.historico_chat.length - 1) : 0} msgs</span>
+                  </div>
+                </div>
+                
+                <div className="p-5 flex-1 flex flex-col justify-end">
+                  <a 
+                    href={`https://wa.me/55${lead.telefone.replace(/\D/g, '')}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-center py-2.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
+                  >
+                    Assumir (Human Handoff)
+                  </a>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
