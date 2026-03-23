@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 
-// Tipagem rigorosa para o fluxo de mensagens
 type Message = {
   id: string;
   role: "user" | "ai";
@@ -22,7 +21,10 @@ export default function WebChat() {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll para a última mensagem
+  // 🏢 MULTI-TENANT CONFIG: Define de qual empresa é este chat
+  // Em um SaaS real, você pegaria isso da URL (ex: meusaas.com/chat/imobiliaria-alpha)
+  const CURRENT_TENANT = "default-tenant";
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -41,18 +43,19 @@ export default function WebChat() {
       content: input 
     };
 
-    // Atualiza a tela com a mensagem do cliente (State Management)
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
 
     try {
-      // 🚨 Ponto de Integração Enterprise
-      // Aqui estamos batendo em uma rota de API do Next.js (ex: /api/chat)
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMessage.content }),
+        // 🔥 FIX: Injetando o tenant_id no Payload para isolamento de dados
+        body: JSON.stringify({ 
+          message: userMessage.content,
+          tenant_id: CURRENT_TENANT 
+        }),
       });
 
       if (!response.ok) throw new Error("Falha na API do Agente Web");
@@ -62,7 +65,6 @@ export default function WebChat() {
       const aiMessage: Message = { 
         id: (Date.now() + 1).toString(), 
         role: "ai", 
-        // Adapte o "data.reply" de acordo com o JSON que a sua API da Groq devolve
         content: data.reply || data.ai_response || "Desculpe, a IA processou a requisição mas o formato de retorno está incorreto." 
       };
 
@@ -84,8 +86,6 @@ export default function WebChat() {
 
   return (
     <main className="min-h-screen bg-slate-950 flex flex-col font-sans selection:bg-indigo-500/30">
-      
-      {/* Header do Chat (Navbar) */}
       <header className="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-10 shadow-lg">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -106,37 +106,21 @@ export default function WebChat() {
               </p>
             </div>
           </div>
-          
-          <Link 
-            href="/" 
-            className="text-slate-400 hover:text-white transition-colors text-sm font-medium bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700"
-          >
+          <Link href="/" className="text-slate-400 hover:text-white transition-colors text-sm font-medium bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700">
             Voltar ao Início
           </Link>
         </div>
       </header>
 
-      {/* Área de Mensagens (View) */}
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
         <div className="max-w-4xl mx-auto space-y-6 pt-4 pb-8">
           {messages.map((msg) => (
-            <div 
-              key={msg.id} 
-              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              <div 
-                className={`max-w-[85%] sm:max-w-[75%] p-4 rounded-2xl shadow-md backdrop-blur-sm transition-all animate-fade-in-up ${
-                  msg.role === "user" 
-                    ? "bg-indigo-600 text-white rounded-tr-sm" 
-                    : "bg-slate-800 text-slate-100 border border-slate-700 rounded-tl-sm"
-                }`}
-              >
+            <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div className={`max-w-[85%] sm:max-w-[75%] p-4 rounded-2xl shadow-md backdrop-blur-sm transition-all animate-fade-in-up ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-sm" : "bg-slate-800 text-slate-100 border border-slate-700 rounded-tl-sm"}`}>
                 <p className="leading-relaxed text-sm md:text-base">{msg.content}</p>
               </div>
             </div>
           ))}
-          
-          {/* Indicador de Digitação (Loading State) */}
           {isLoading && (
             <div className="flex justify-start">
               <div className="bg-slate-800 border border-slate-700 p-4 rounded-2xl rounded-tl-sm shadow-md flex gap-2 items-center">
@@ -150,37 +134,17 @@ export default function WebChat() {
         </div>
       </div>
 
-      {/* Área de Input (Form) */}
       <footer className="bg-slate-900 border-t border-slate-800 p-4 sticky bottom-0">
         <div className="max-w-4xl mx-auto">
-          <form 
-            onSubmit={sendMessage}
-            className="flex items-end gap-2 bg-slate-950 border border-slate-700 p-2 rounded-2xl focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition-all shadow-inner"
-          >
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Digite sua mensagem para a IA..."
-              className="flex-1 bg-transparent text-white px-4 py-3 outline-none w-full placeholder:text-slate-500"
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              disabled={isLoading || !input.trim()}
-              className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white w-12 h-12 rounded-xl flex items-center justify-center transition-all flex-shrink-0 shadow-lg"
-            >
-              <svg className="w-5 h-5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
+          <form onSubmit={sendMessage} className="flex items-end gap-2 bg-slate-950 border border-slate-700 p-2 rounded-2xl focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition-all shadow-inner">
+            <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Digite sua mensagem para a IA..." className="flex-1 bg-transparent text-white px-4 py-3 outline-none w-full placeholder:text-slate-500" disabled={isLoading} />
+            <button type="submit" disabled={isLoading || !input.trim()} className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white w-12 h-12 rounded-xl flex items-center justify-center transition-all flex-shrink-0 shadow-lg">
+              <svg className="w-5 h-5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
             </button>
           </form>
-          <p className="text-center text-xs text-slate-500 mt-3">
-            O Agente pode cometer erros. Considere verificar as informações importantes.
-          </p>
+          <p className="text-center text-xs text-slate-500 mt-3">O Agente pode cometer erros. Considere verificar as informações importantes.</p>
         </div>
       </footer>
-      
     </main>
   );
 }
